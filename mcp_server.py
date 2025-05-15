@@ -81,7 +81,7 @@ class MCPServer:
             # Prepare manifest for AI analysis
             manifest_str = content
             #system_prompt = f"Fix this Kubernetes YAML by updating deprecated APIs, correcting syntax and values like wrong kind names, and return only the corrected YAML with no explanations, comments, or extra text. Below is the file content:\n{manifest_str}"
-            system_prompt = f"""You are a YAML fixer. Correct the following Kubernetes YAML: fix deprecated API versions, syntax issues, and invalid values. Output ONLY the corrected YAML. Do NOT add any text, comments, or explanations. Below is the file content:{manifest_str}"""
+            system_prompt = f"""Fix this Kubernetes YAML: Update deprecated APIs, correct syntax errors, fix invalid resource types/values, and ensure proper formatting. Return ONLY the corrected YAML within a YAML code block (```yaml).: {manifest_str}"""
     
             #system_prompt = "You are a Kubernetes expert. Analyze the manifest for best practices, security issues, and potential improvements."
 
@@ -99,7 +99,7 @@ class MCPServer:
                 # Use Ollama for analysis
                 try:
                     response = self.ollama_client.chat(
-                        model='Eomer/gpt-3.5-turbo',  # Using llama2 as default model
+                        model='GandalfBaum/llama3.1-claude3.7',  # Using llama2 as default model
                         messages=[
                            # {"role": "system", "content": system_prompt},
                             {"role": "user", "content": system_prompt}
@@ -110,11 +110,13 @@ class MCPServer:
                      # Assuming analysis is the updated manifes
                     print(f"Ollama analysis: {analysis}")
                     # Extract only the YAML part (starting with a known key like "apiVersion")
-                    cleaned_output = re.sub(r"^```.*?$", "", analysis.strip(), flags=re.MULTILINE)
-                    cleaned_output = re.sub(r"^(Here is.*|Corrected YAML.*|Output:.*)$", "", cleaned_output, flags=re.IGNORECASE | re.MULTILINE).strip()
-                    cleaned_output = cleaned_output.strip()
-                    print(f"Cleaned output: {cleaned_output}")
-                    updated_manifest = yaml.safe_load(cleaned_output)
+                    #cleaned_output = re.sub(r"^```.*?$", "", analysis.strip(), flags=re.MULTILINE)
+                    #cleaned_output = re.sub(r"^(Here is.*|Corrected YAML.*|Output:.*)$", "", cleaned_output, flags=re.IGNORECASE | re.MULTILINE).strip()
+                    #cleaned_output = cleaned_output.strip()
+                    #print(f"Cleaned output: {cleaned_output}")
+                    #updated_manifest = yaml.safe_load(cleaned_output)
+                    match = re.search(r"```yaml\s*\n(.*?)```", analysis, re.DOTALL)
+                    updated_manifest = yaml.safe_load(match.group(1).strip()
                     print(f"Updated manifest: {updated_manifest}")
                 except Exception as e:
                     logger.error(f"Error using Ollama model: {e}")

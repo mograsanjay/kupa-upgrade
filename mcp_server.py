@@ -116,7 +116,7 @@ class MCPServer:
                     #print(f"Cleaned output: {cleaned_output}")
                     #updated_manifest = yaml.safe_load(cleaned_output)
                     match = re.search(r"```yaml\s*\n(.*?)```", analysis, re.DOTALL)
-                    updated_manifest = yaml.safe_load(match.group(1).strip()
+                    updated_manifest = yaml.safe_load(match.group(1).strip())
                     print(f"Updated manifest: {updated_manifest}")
                 except Exception as e:
                     logger.error(f"Error using Ollama model: {e}")

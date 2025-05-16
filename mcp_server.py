@@ -36,7 +36,8 @@ class ManifestUpdate(BaseModel):
     file_path: str
 
 class ManifestAnalysis(BaseModel):
-    manifest: Dict[str, Any]
+    manifest: Dict[str, Any] = {}
+    helm_template: str = ""
     #issues: List[str]
     #suggestions: List[str]
 
@@ -116,11 +117,19 @@ class MCPServer:
                     #print(f"Cleaned output: {cleaned_output}")
                     #updated_manifest = yaml.safe_load(cleaned_output)
                     match = re.search(r"```yaml\s*\n(.*?)```", analysis, re.DOTALL)
-                    updated_manifest = yaml.safe_load(match.group(1).strip())
-                    print(f"Updated manifest: {updated_manifest}")
+                    if "{{" in manifest_str and "}}" in manifest_str:
+                        helm = f'{match.group(1).strip()}'
+                        #helm = f'`{match.group(1).strip()}`'
+                        print(f"Updated Helm: {helm}")
+                        updated_manifest = {}
+                    else:
+                        updated_manifest = yaml.safe_load(match.group(1).strip())
+                        print(f"Updated manifest: {updated_manifest}")
+                        helm = ""
                 except Exception as e:
                     logger.error(f"Error using Ollama model: {e}")
-                    return ManifestAnalysis(manifest=updated_manifest, 
+                    return ManifestAnalysis(manifest= {},
+                    helm_template= ""
                     #issues=[str(e)], suggestions=[]
                     )
 
@@ -130,6 +139,7 @@ class MCPServer:
 
             return ManifestAnalysis(
                 manifest=updated_manifest,
+                helm_template=helm 
                 #issues=issues, suggestions=suggestions
             )
         except Exception as e:
@@ -166,11 +176,15 @@ class MCPServer:
 
         return errors
 
-    def update_manifest_file(self, file_path: str, manifest: Dict[str, Any]) -> None:
+    def update_manifest_file(self, file_path: str, manifest: Dict[str, Any], helm_template: str) -> None:
         """Update the manifest file with the improved version."""
         try:
+            
             with open(file_path, 'w') as f:
-                yaml.safe_dump(manifest, f)
+                if(helm_template not in ["", None]):
+                    f.write(helm_template)
+                elif manifest != {}:
+                    yaml.safe_dump(manifest, f)
             logger.info(f"Successfully updated manifest file: {file_path}")
         except Exception as e:
             logger.error(f"Error updating manifest file {file_path}: {e}")
@@ -216,13 +230,19 @@ class MCPServer:
                         # Directly analyze the YAML content
                         try:
                             analysis = self.analyze_manifest(content, file_path)
-                            if analysis.manifest:
+                            if analysis.helm_template not in ["", None]:
                                 # Update the file with the AI-suggested changes
-                                self.update_manifest_file(file_path, analysis.manifest)
+                                self.update_manifest_file(file_path,{} ,analysis.helm_template)
+                                manifests.append(analysis.helm_template)
+                                logger.info(f"Successfully updated {file} with AI analysis")
+                            elif analysis.manifest:
+                                # Update the file with the AI-suggested changes
+                                self.update_manifest_file(file_path, analysis.manifest, "")
                                 manifests.append(analysis.manifest)
                                 logger.info(f"Successfully updated {file} with AI analysis")
                             else:
                                 # If no updates, keep track of the original content
+                                print("check for test")
                                 manifests.append(content)
                                 logger.warning(f"No updates for {file}, using original content")
                             logger.info(f"Successfully processed {file}")
